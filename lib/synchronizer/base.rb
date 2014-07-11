@@ -7,7 +7,7 @@ class Synchronizer::Base
     @external_attrs = external_attrs.with_indifferent_access
   end
 
-  def sync!
+  def sync
     error_handler do
       if import_record.present?
         update_local_record!
@@ -25,15 +25,19 @@ class Synchronizer::Base
   end
 
   def local_attrs
-    self.class.mapping(external_attrs)
+    @local_attrs ||= mapping
   end
 
   def import_record
-    @import_record ||= ImportRecord.find_by_external_id_and_local_type(external_id, local_type)
+    @import_record ||= self.class.import_class.find_by_external_id_and_local_type(external_id, local_type)
   end
 
   def external_id
-    external_attrs[config.external_id || :id]
+    external_attrs[Synchronizer.config.external_id || :id]
+  end
+
+  def mapping
+    raise "Owerwrite this method for mapping external_attrs to local!"
   end
 
   private
@@ -91,7 +95,7 @@ class Synchronizer::Base
     def sync(external_items, options = {})
       @@errors = []
 
-      destroy_missed = options[:destroy_missed] || true
+      destroy_missed = options[:destroy_missed] == false ? false : true
       model_sync_name = name.demodulize
 
       old_import_ids = options[:scope_import_record_ids] || import_records.pluck(:id)
@@ -99,7 +103,7 @@ class Synchronizer::Base
 
       external_items.each do |item_attrs|
         sync_object = new(item_attrs)
-        if sync_object.sync!
+        if sync_object.sync
           current_import_ids << sync_object.import_record.id
         end
       end
@@ -126,16 +130,12 @@ class Synchronizer::Base
       end
     end
 
-    def mapping(external_attrs)
-      raise "Owerwrite this method for mapping external attributes to local!"
-    end
-
     def import_records
-      import_class.with_type(import_type)
+      import_class.with_type(local_type)
     end
 
     def import_class
-      config.import_class || ImportRecord
+      Synchronizer.config.import_class_name.constantize
     end
 
     def local_type

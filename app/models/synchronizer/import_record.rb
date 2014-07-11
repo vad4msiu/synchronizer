@@ -6,16 +6,22 @@ class Synchronizer::ImportRecord < ActiveRecord::Base
     :dependent    => :destroy
   )
 
-  Synchronizer.config.import_types.each do |type|
+  Synchronizer.config.local_types.each do |type|
     scope "only_#{type.underscore}", -> { where(:local_type => type) }
   end
   scope :with_type, ->(type) { where(:local_type => type.to_s) }
+  scope :with_external_ids, ->(ids) { where(:external_id => ids) }
+  scope :with_local_ids, ->(ids) { where(:local_id => ids) }
 
-  validates :local_type, :inclusion => { :in => ->(o) { Synchronizer.config.import_types }}
+  validates :local_type, :inclusion => { :in => ->(o) { Synchronizer.config.local_types }}
   validates :local_record, :presence => true
 
   def self.find_by_external_id!(external_id)
     find_by!(:external_id => external_id)
+  end
+
+  def self.find_by_local_record(local_record)
+    find_by(:local_record => local_record)
   end
 
   def self.find_by_external_id_and_local_type(external_id, local_type)
