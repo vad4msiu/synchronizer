@@ -4,7 +4,7 @@ class Synchronizer::Base
   attr_reader :external_attrs
 
   def initialize(external_attrs)
-    @external_attrs = external_attrs.with_indifferent_access
+    @external_attrs = external_attrs
   end
 
   def sync
